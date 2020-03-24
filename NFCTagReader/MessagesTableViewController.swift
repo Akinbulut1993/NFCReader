@@ -36,6 +36,32 @@ class MessagesTableViewController: UITableViewController, NFCNDEFReaderSessionDe
         session?.alertMessage = "Hold your iPhone near the item to learn more about it."
         session?.begin()
     }
+    
+    // Reading UID
+    // https://stackoverflow.com/questions/57978507/reading-uids-of-nfc-cards-in-ios-13UID
+    func ReaderSession(_ session: NFCTagReaderSession, didDetect tags: [NFCTag]) {
+            if case let NFCTag.miFare(tag) = tags.first! {
+                session.connect(to: tags.first!) { (error: Error?) in
+                    let apdu = NFCISO7816APDU(instructionClass: 0, instructionCode: 0xB0, p1Parameter: 0, p2Parameter: 0, data: Data(), expectedResponseLength: 16)
+                    tag.sendMiFareISO7816Command(apdu) { (apduData, sw1, sw2, error) in
+                        let tagUIDData = tag.identifier
+                        var byteData: [UInt8] = []
+                        tagUIDData.withUnsafeBytes { byteData.append(contentsOf: $0) }
+                        var uidString = ""
+                        for byte in byteData {
+                            let decimalNumber = String(byte, radix: 16)
+                            if (Int(decimalNumber) ?? 0) < 10 { // add leading zero
+                                uidString.append("0\(decimalNumber)")
+                            } else {
+                                uidString.append(decimalNumber)
+                            }
+                        }
+                        debugPrint("\(byteData) converted to Tag UID: \(uidString)")
+                    }
+                }
+            }
+        }
+
 
     // MARK: - NFCNDEFReaderSessionDelegate
 
